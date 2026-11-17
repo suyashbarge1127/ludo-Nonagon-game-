@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Royal Ludo Imperial (9 Player)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Poppins:wght@400;600;800&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: radial-gradient(circle at center, #590d22 0%, #20010d 100%);
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+
+        /* Glassmorphism styling */
+        .glass-panel {
+            background: rgba(20, 0, 5, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen justify-between p-4">
+
+    <!-- Header Banner -->
+    <header class="text-center py-2">
+        <h1 class="font-cinzel text-4xl text-amber-400 tracking-wider drop-shadow-[0_5px_15px_rgba(255,215,0,0.4)]">
+            ROYAL LUDO IMPERIAL
+        </h1>
+    </header>
+
+    <!-- Main 3-Column Layout Matching Reference -->
+    <div class="grid grid-cols-12 gap-4 flex-1 items-center max-w-7xl mx-auto w-full px-2">
+
+        <!-- LEFT COLUMN: Join Team / Player Slots (1 to 9) -->
+        <div class="col-span-3 glass-panel rounded-2xl p-4 flex flex-col h-[700px]">
+            <h2 class="font-cinzel text-red-400 font-bold text-lg mb-3 border-b border-red-500/30 pb-1">
+                Join Team
+            </h2>
+            <div id="playerSlotsList" class="flex flex-col gap-2.5 overflow-y-auto flex-1 pr-1">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <!-- CENTER COLUMN: 9-Sided Board Canvas & Action Control -->
+        <div class="col-span-6 flex flex-col items-center justify-center relative">
+            <div class="relative w-[650px] h-[650px] flex items-center justify-center">
+                <canvas id="ludoCanvas" width="650" height="650" class="drop-shadow-[0_0_30px_rgba(0,0,0,0.8)] rounded-full"></canvas>
+            </div>
+            
+            <!-- Turn & Roll Controls Overlay -->
+            <div class="mt-3 flex items-center gap-4 glass-panel px-6 py-2 rounded-full">
+                <span id="turnIndicator" class="text-amber-300 font-semibold text-sm">Waiting to start...</span>
+                <button id="rollBtn" onclick="rollDice()" disabled class="bg-gradient-to-r from-amber-600 to-amber-400 text-black font-cinzel font-bold px-6 py-2 rounded-full shadow-lg hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    Roll Dice 🎲
+                </button>
+                <button id="startBtn" onclick="startGame()" style="display:none;" class="bg-gradient-to-r from-emerald-600 to-emerald-400 text-white font-cinzel font-bold px-6 py-2 rounded-full shadow-lg hover:scale-105 transition">
+                    Start Match
+                </button>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Select Player (Top) & Winners (Bottom) -->
+        <div class="col-span-3 flex flex-col gap-4 h-[700px]">
+            <!-- Select Player Grid -->
+            <div class="glass-panel rounded-2xl p-4 flex-1 flex flex-col">
+                <h2 class="font-cinzel text-amber-400 font-bold text-lg mb-3 border-b border-amber-500/30 pb-1">
+                    Select Player
+                </h2>
+                <div class="grid grid-cols-3 gap-3 overflow-y-auto flex-1 p-1" id="characterGrid">
+                    <!-- Character options -->
+                    <div onclick="selectCharacter('Knight')" class="char-card cursor-pointer border-2 border-amber-500/40 rounded-xl p-1 bg-black/30 hover:border-amber-400 text-center transition">
+                        <div class="text-2xl">🛡️</div>
+                        <span class="text-[10px] font-semibold text-amber-200">Knight</span>
+                    </div>
+                    <div onclick="selectCharacter('Wizard')" class="char-card cursor-pointer border-2 border-amber-500/40 rounded-xl p-1 bg-black/30 hover:border-amber-400 text-center transition">
+                        <div class="text-2xl">🧙‍♂️</div>
+                        <span class="text-[10px] font-semibold text-amber-200">Wizard</span>
+                    </div>
+                    <div onclick="selectCharacter('Ranger')" class="char-card cursor-pointer border-2 border-amber-500/40 rounded-xl p-1 bg-black/30 hover:border-amber-400 text-center transition">
+                        <div class="text-2xl">🏹</div>
+                        <span class="text-[10px] font-semibold text-amber-200">Ranger</span>
+                    </div>
+                    <div onclick="selectCharacter('Princess')" class="char-card cursor-pointer border-2 border-amber-500/40 rounded-xl p-1 bg-black/30 hover:border-amber-400 text-center transition">
+                        <div class="text-2xl">👸</div>
+                        <span class="text-[10px] font-semibold text-amber-200">Princess</span>
+                    </div>
+                    <div onclick="selectCharacter('Rogue')" class="char-card cursor-pointer border-2 border-amber-500/40 rounded-xl p-1 bg-black/30 hover:border-amber-400 text-center transition">
+                        <div class="text-2xl">🦹‍♀️</div>
+                        <span class="text-[10px] font-semibold text-amber-200">Rogue</span>
+                    </div>
+                    <div onclick="selectCharacter('Fairy')" class="char-card cursor-pointer border-2 border-amber-500/40 rounded-xl p-1 bg-black/30 hover:border-amber-400 text-center transition">
+                        <div class="text-2xl">🧚‍♀️</div>
+                        <span class="text-[10px] font-semibold text-amber-200">Fairy</span>
+                    </div>
+                    <div onclick="selectCharacter('Dragon')" class="char-card cursor-pointer border-2 border-amber-500/40 rounded-xl p-1 bg-black/30 hover:border-amber-400 text-center transition">
+                        <div class="text-2xl">🐉</div>
+                        <span class="text-[10px] font-semibold text-amber-200">Dragon</span>
+                    </div>
+                    <div onclick="selectCharacter('Explorer')" class="char-card cursor-pointer border-2 border-amber-500/40 rounded-xl p-1 bg-black/30 hover:border-amber-400 text-center transition">
+                        <div class="text-2xl">🧭</div>
+                        <span class="text-[10px] font-semibold text-amber-200">Explorer</span>
+                    </div>
+                    <div onclick="selectCharacter('King')" class="char-card cursor-pointer border-2 border-amber-500/40 rounded-xl p-1 bg-black/30 hover:border-amber-400 text-center transition">
+                        <div class="text-2xl">👑</div>
+                        <span class="text-[10px] font-semibold text-amber-200">King</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Winners Panel -->
+            <div class="glass-panel rounded-2xl p-4 h-[200px] flex flex-col">
+                <h2 class="font-cinzel text-amber-400 font-bold text-lg mb-2 border-b border-amber-500/30 pb-1">
+                    Winners
+                </h2>
+                <div id="winnersList" class="flex flex-col gap-1 text-sm text-gray-300 overflow-y-auto flex-1">
+                    <span class="italic text-xs text-gray-400">Match in progress...</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const socket = io();
+        const canvas = document.getElementById('ludoCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const SIDES = 9;
+        const baseColors = [
+            '#F1C40F', '#2980B9', '#8E44AD', '#E74C3C', 
+            '#27AE60', '#FD79A8', '#E67E22', '#16A085', '#C0392B'
+        ];
+
+        let myId = null;
+        let gameState = { players: {}, gameStarted: false };
+
+        socket.on('connect', () => { myId = socket.id; });
+
+        socket.on('gameState', (state) => {
+            gameState = state;
+            updateUI();
+            drawBoard();
+        });
+
+        socket.on('diceRolled', (data) => {
+            document.getElementById('turnIndicator').innerText = `Player rolled a ${data.roll}!`;
+        });
+
+        function selectCharacter(charName) {
+            socket.emit('updateProfile', { character: charName });
+        }
+
+        function startGame() {
+            socket.emit('startGame');
+        }
+
+        function rollDice() {
+            socket.emit('rollDice');
+        }
+
+        function updateUI() {
+            const slotsContainer = document.getElementById('playerSlotsList');
+            slotsContainer.innerHTML = '';
+
+            const playersArr = Object.values(gameState.players);
+
+            // Render Player-1 to Player-9 slots matching the reference image layout
+            for (let i = 0; i < 9; i++) {
+                const player = playersArr[i];
+                const slotDiv = document.createElement('div');
+                slotDiv.className = `flex items-center justify-between p-2.5 rounded-xl border ${player ? 'bg-white/10 border-amber-500/40' : 'bg-black/20 border-white/10'}`;
+                
+                if (player) {
+                    slotDiv.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full" style="background:${player.color}"></span>
+                            <span class="text-xs font-semibold">${player.name} (${player.character})</span>
+                        </div>
+                        <span class="text-[10px] text-amber-400 font-bold">${player.id === myId ? 'YOU' : 'READY'}</span>
+                    `;
+                } else {
+                    slotDiv.innerHTML = `
+                        <span class="text-xs text-gray-400">Player-${i + 1}</span>
+                        <span class="text-[10px] text-gray-500">Waiting...</span>
+                    `;
+                }
+                slotsContainer.appendChild(slotDiv);
+            }
+
+            // Controls visibility
+            const rollBtn = document.getElementById('rollBtn');
+            const startBtn = document.getElementById('startBtn');
+
+            if (!gameState.gameStarted) {
+                if (playersArr.length >= gameState.minPlayers && playersArr[0]?.id === myId) {
+                    startBtn.style.display = 'block';
+                } else {
+                    startBtn.style.display = 'none';
+                }
+                rollBtn.disabled = true;
+                document.getElementById('turnIndicator').innerText = `Waiting for players (${playersArr.length}/9)...`;
+            } else {
+                startBtn.style.display = 'none';
+                rollBtn.disabled = gameState.turn !== myId;
+                const activePlayer = gameState.players[gameState.turn];
+                document.getElementById('turnIndicator').innerText = gameState.turn === myId ? "Your Turn!" : `${activePlayer?.name || 'Opponent'}'s Turn`;
+            }
+        }
+
+        // Draw 9-Sided Decagon/Nonagon Board matching Sample.jpg reference
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const radius = 290;
+            const centerRadius = 45;
+
+            // 1. Draw 9 Triangular Wedges (Bases)
+            for (let i = 0; i < SIDES; i++) {
+                const a1 = i * (2 * Math.PI / SIDES) - (Math.PI / 2);
+                const a2 = (i + 1) * (2 * Math.PI / SIDES) - (Math.PI / 2);
+
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + radius * Math.cos(a1), cy + radius * Math.sin(a1));
+                ctx.lineTo(cx + radius * Math.cos(a2), cy + radius * Math.sin(a2));
+                ctx.closePath();
+                ctx.fillStyle = baseColors[i];
+                ctx.fill();
+                ctx.strokeStyle = '#111';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw 4 White Token Circles inside each wedge
+                const midAngle = (a1 + a2) / 2;
+                const bx = cx + (radius * 0.65) * Math.cos(midAngle);
+                const by = cy + (radius * 0.65) * Math.sin(midAngle);
+
+                for (let t = 0; t < 4; t++) {
+                    const tx = bx + (t % 2 === 0 ? -10 : 10);
+                    const ty = by + (t < 2 ? -10 : 10);
+                    ctx.beginPath();
+                    ctx.arc(tx, ty, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fill();
+                    ctx.strokeStyle = baseColors[i];
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+
+            // 2. Draw White Path Tracks extending between wedges
+            const pathWidth = 55;
+            const pathLength = radius - centerRadius;
+
+            for (let i = 0; i < SIDES; i++) {
+                const angle = i * (2 * Math.PI / SIDES) - (Math.PI / 2);
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(angle);
+
+                // White Track Strip
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(centerRadius, -pathWidth / 2, pathLength, pathWidth);
+
+                // Grid squares/dividers
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                const cellW = pathLength / 6;
+                for (let r = 0; r <= 6; r++) {
+                    ctx.beginPath();
+                    ctx.moveTo(centerRadius + r * cellW, -pathWidth / 2);
+                    ctx.lineTo(centerRadius + r * cellW, pathWidth / 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            // 3. Draw Center Hub
+            ctx.beginPath();
+            ctx.arc(cx, cy, centerRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#333333';
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#FFD700';
+            ctx.stroke();
+
+            ctx.font = 'bold 14px Cinzel';
+            ctx.fillStyle = '#FFD700';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('KING', cx, cy);
+        }
+
+        // Initial draw call
+        drawBoard();
+    </script>
+</body>
+</html>
